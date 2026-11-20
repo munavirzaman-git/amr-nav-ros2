@@ -17,9 +17,16 @@ wheel-encoder odometry, mapping, localization and navigation among moving obstac
 includes **from-scratch A\* and Dynamic Window Approach planners implemented as Nav2 plugins**,
 which are benchmarked against Nav2's own planners.
 
-<!-- ## Demo
+## Demo
+
 ![demo](docs/media/demo.gif)
--->
+
+*Custom A\* global planner + DWA local planner with AMCL, driving the benchmark tour while two
+moving obstacles cross its path (2x speed). Full-quality video: [docs/media/demo.mp4](docs/media/demo.mp4).*
+
+| Gazebo Harmonic | RViz: start | RViz: navigating |
+|---|---|---|
+| ![gazebo](docs/media/gazebo_world.png) | ![rviz start](docs/media/rviz_overview.png) | ![rviz navigation](docs/media/rviz_navigation.png) |
 
 ![warehouse layout](docs/media/warehouse_layout.png)
 
