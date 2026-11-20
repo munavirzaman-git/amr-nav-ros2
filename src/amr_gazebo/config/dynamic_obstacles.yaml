@@ -1,0 +1,13 @@
+# Patrol routes for the moving obstacles.
+# Waypoints are OFFSETS (x0, y0, x1, y1, ...) from the obstacle's spawn pose,
+# visited cyclically. Spawn poses are set in amr_bringup/launch/sim.launch.py.
+dynamic_obstacle_driver:
+  ros__parameters:
+    use_sim_time: true
+    obstacles: ["dyn_obstacle_1", "dyn_obstacle_2"]
+    dyn_obstacle_1:            # spawned at (-2.0, 0.0): crosses the central corridor N-S
+      waypoints: [0.0, -2.5, 0.0, 2.5]
+      speed: 0.35
+    dyn_obstacle_2:            # spawned at (5.0, -1.0): patrols E-W in front of the east room
+      waypoints: [-2.5, 0.0, 2.5, 0.0]
+      speed: 0.30

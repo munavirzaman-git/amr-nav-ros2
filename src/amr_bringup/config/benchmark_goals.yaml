@@ -1,0 +1,35 @@
+# Goal sequence for nav_benchmark (x, y, yaw in the map frame) and start/goal
+# pairs for planner_benchmark. The tour crosses both dynamic-obstacle patrol lanes.
+initial_pose: [0.0, 0.0, 0.0]
+
+goals:
+  - name: ne_bay
+    pose: [8.5, 5.0, 1.57]
+  - name: nw_corner
+    pose: [-7.0, 5.5, 3.14]
+  - name: sw_corner
+    pose: [-6.5, -5.5, -1.57]
+  - name: se_corner
+    pose: [6.5, -5.5, 0.0]
+  - name: home
+    pose: [0.0, 0.0, 0.0]
+
+planner_queries:
+  - name: home_to_ne
+    start: [0.0, 0.0, 0.0]
+    goal: [8.5, 5.0, 1.57]
+  - name: ne_to_nw
+    start: [8.5, 5.0, 1.57]
+    goal: [-7.0, 5.5, 3.14]
+  - name: nw_to_sw
+    start: [-7.0, 5.5, 3.14]
+    goal: [-6.5, -5.5, -1.57]
+  - name: sw_to_se
+    start: [-6.5, -5.5, -1.57]
+    goal: [6.5, -5.5, 0.0]
+  - name: se_to_ne_room
+    start: [6.5, -5.5, 0.0]
+    goal: [7.25, 3.0, 1.57]
+  - name: diagonal
+    start: [-8.5, -2.0, 0.0]
+    goal: [8.5, 2.5, 0.0]

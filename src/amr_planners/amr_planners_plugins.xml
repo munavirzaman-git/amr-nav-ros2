@@ -1,0 +1,10 @@
+<class_libraries>
+  <library path="amr_planners">
+    <class type="amr_planners::AStarPlanner" base_class_type="nav2_core::GlobalPlanner">
+      <description>Cost-aware 8-connected A* global planner with constrained gradient smoothing.</description>
+    </class>
+    <class type="amr_planners::DWAController" base_class_type="nav2_core::Controller">
+      <description>Dynamic Window Approach local planner for differential-drive robots.</description>
+    </class>
+  </library>
+</class_libraries>
