@@ -1,227 +1,170 @@
-# Autonomous Mobile Robot Navigation — ROS 2 Jazzy + Gazebo Harmonic
+<div align="center">
 
-A complete differential-drive AMR navigation stack, from wheel encoders to a benchmarked
-comparison between Nav2's planners and **custom A\* (global) and DWA (local) planners**
-written as real Nav2 plugins.
+# Autonomous Mobile Robot Navigation
+### ROS 2 Jazzy · Gazebo Harmonic · SLAM Toolbox · AMCL · Nav2 · custom A\* & DWA
 
-| Requirement | Where |
-|---|---|
-| Diff-drive robot, wheel encoders | `amr_description` — ros2_control + `diff_drive_controller` integrating encoder **positions** (`position_feedback: true`), fused with IMU yaw-rate in a `robot_localization` EKF |
-| SLAM Toolbox / occupancy grid maps | `amr_bringup/launch/{mapping,slam}.launch.py`, `config/slam_toolbox.yaml`, `scripts/save_map.sh` |
-| AMCL localization | `amr_bringup/launch/localization.launch.py` (map_server + AMCL, diff motion model) |
-| Nav2 autonomous navigation | `amr_bringup/launch/navigation.launch.py` (all servers + velocity smoother + collision monitor) |
-| Global / local costmaps in RViz | `amr_bringup/rviz/navigation.rviz` (map, both costmaps, plans, particles, DWA rollouts, footprint) |
-| Dynamic obstacle avoidance | 2 moving obstacles in Gazebo (not in the map) + ray-traced obstacle layers + 1 Hz replanning + DWA + collision monitor |
-| Custom global planner (A\*) | `amr_planners::AStarPlanner` (`nav2_core::GlobalPlanner`) |
-| Custom local planner (DWA) | `amr_planners::DWAController` (`nav2_core::Controller`) |
-| Compare Nav2 vs own planners | `amr_tools`: `planner_benchmark`, `nav_benchmark`, `analyze_results`, `run_comparison.sh` |
+[![CI](https://github.com/munavirzaman-git/amr-nav-ros2/actions/workflows/ci.yml/badge.svg)](https://github.com/munavirzaman-git/amr-nav-ros2/actions/workflows/ci.yml)
+![ROS 2](https://img.shields.io/badge/ROS%202-Jazzy-22314E?logo=ros)
+![Gazebo](https://img.shields.io/badge/Gazebo-Harmonic-F58113)
+![Nav2](https://img.shields.io/badge/Nav2-plugins-0A7BBB)
+![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-![layout](docs/warehouse_layout.png)
+</div>
 
----
+A complete autonomous navigation system for a differential-drive mobile robot. It covers
+wheel-encoder odometry, mapping, localization and navigation among moving obstacles. It also
+includes **from-scratch A\* and Dynamic Window Approach planners implemented as Nav2 plugins**,
+which are benchmarked against Nav2's own planners.
 
-## 1. Packages
+<!-- ## Demo
+![demo](docs/media/demo.gif)
+-->
 
-```
-amr_nav_ws/src
-├── amr_description   URDF/xacro: chassis, 2 drive wheels (encoders), 2 casters, gpu_lidar, IMU, ros2_control
-├── amr_gazebo        warehouse.sdf (generated), dynamic_obstacle model, ros_gz_bridge configs,
-│                     generate_world_and_map.py (world + pixel-aligned ground-truth map from one spec)
-├── amr_planners      C++: GridAStar + DWACore (ROS-free, unit-tested) and the two Nav2 plugin wrappers
-├── amr_tools         Python: cmd_vel relay, obstacle driver, planner/navigation benchmarks, analysis
-└── amr_bringup       launch files, Nav2/AMCL/SLAM/EKF params, maps, RViz, helper scripts
-```
+![warehouse layout](docs/media/warehouse_layout.png)
 
-## 2. Data flow
+## Highlights
 
-```mermaid
-flowchart LR
-  subgraph Gazebo Harmonic
-    W[warehouse + moving obstacles]
-    L[gpu_lidar] --> B
-    I[IMU] --> B
-    GC[gz_ros2_control]
-  end
-  B[ros_gz_bridge] -->|/scan /imu /clock| R
-  GC -->|wheel encoders| DD[diff_drive_controller]
-  DD -->|/diff_drive_controller/odom| EKF[robot_localization EKF]
-  B -->|/imu| EKF
-  EKF -->|odom→base_footprint, /odometry/filtered| R[ROS 2]
-  R --> AMCL[AMCL or SLAM Toolbox] -->|map→odom| NAV
-  NAV[planner_server: A* / NavFn / Smac] -->|/plan| CTRL[controller_server: DWA / DWB / MPPI]
-  CTRL -->|cmd_vel_nav| VS[velocity_smoother] -->|cmd_vel_smoothed| CM[collision_monitor]
-  CM -->|/cmd_vel Twist| RELAY[cmd_vel_relay] -->|TwistStamped| DD
-```
+- **Encoder-based odometry.** `ros2_control` integrates the wheel joint positions. A
+  `robot_localization` EKF fuses this with the IMU yaw rate.
+- **Mapping.** SLAM Toolbox builds the map either by teleop or by a fully autonomous coverage
+  tour (`auto_mapper`).
+- **Localization and navigation.** AMCL and the full Nav2 stack, with a velocity smoother and a
+  collision monitor.
+- **Layered dynamic obstacle avoidance.**
+  - Obstacle layers in both costmaps, cleared by ray tracing as obstacles move.
+  - Replanning at 1 Hz.
+  - DWA collision checking at 20 Hz.
+  - Collision-monitor time-to-collision limiting.
+- **Custom planners as real Nav2 plugins.**
+  - `AStarPlanner`: cost-aware 8-connected A\* with a constrained smoother.
+  - `DWAController`: a classic dynamic window with exact arc rollouts.
+  - Both support Nav2 cancellation, speed limits, the standard exceptions and recoveries.
+- **Plugin swap at launch:** `planner:=navfn|smac|astar controller:=mppi|dwb|dwa`.
+- **Reproducible evaluation.** Planner, end-to-end and SLAM-map-accuracy benchmarks with
+  automatic tables and plots.
+- **Engineering.** ROS-free algorithm cores with unit tests, CI, Docker, and documentation.
 
-TF tree: `map → odom → base_footprint → base_link → {left,right}_wheel_link, lidar_link, imu_link, casters`
-(`map→odom` from AMCL or SLAM Toolbox, `odom→base_footprint` from the EKF).
-
-`cmd_vel_relay` exists because Jazzy's `diff_drive_controller` takes `TwistStamped` while Nav2's
-collision monitor and `teleop_twist_keyboard` publish `Twist`.
-
-## 3. Install and build
-
-Ubuntu 24.04 + ROS 2 Jazzy (Gazebo Harmonic is the Jazzy-paired version):
+## Quick start
 
 ```bash
-sudo apt update
-sudo apt install -y ros-jazzy-ros-gz ros-jazzy-gz-ros2-control ros-jazzy-ros2-control \
-  ros-jazzy-ros2-controllers ros-jazzy-navigation2 ros-jazzy-nav2-bringup \
-  ros-jazzy-slam-toolbox ros-jazzy-robot-localization ros-jazzy-xacro \
-  ros-jazzy-teleop-twist-keyboard python3-matplotlib python3-yaml
+# Ubuntu 24.04 + ROS 2 Jazzy
+sudo apt install -y ros-jazzy-ros-gz ros-jazzy-gz-ros2-control ros-jazzy-ros2-controllers \
+  ros-jazzy-navigation2 ros-jazzy-nav2-bringup ros-jazzy-slam-toolbox \
+  ros-jazzy-robot-localization ros-jazzy-teleop-twist-keyboard python3-matplotlib
 
+git clone https://github.com/munavirzaman-git/amr-nav-ros2.git ~/amr_nav_ws
 cd ~/amr_nav_ws
 rosdep install --from-paths src --ignore-src -y
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
-colcon test --packages-select amr_planners && colcon test-result --verbose   # 12 algorithm tests
+
+ros2 launch amr_bringup bringup.launch.py         # A* + DWA, AMCL, moving obstacles
 ```
+Send goals with **Nav2 Goal** in RViz. Or use Docker: [`docker/Dockerfile`](docker/Dockerfile).
 
-## 4. Run
+## Usage
 
-### 4.1 Mapping with SLAM Toolbox (teleop)
-```bash
-ros2 launch amr_bringup mapping.launch.py               # static world, SLAM, RViz
-ros2 run teleop_twist_keyboard teleop_twist_keyboard    # second terminal; drive around slowly
-ros2 run amr_bringup save_map.sh ~/maps/warehouse_slam  # writes .pgm/.yaml (+ pose graph)
-```
-Dynamic obstacles are disabled while mapping so they don't get baked into the map.
-
-**No teleop? Map autonomously** - Nav2 drives a coverage tour while SLAM maps, then saves:
-```bash
-ros2 launch amr_bringup bringup.launch.py slam:=true dynamic_obstacles:=false   # terminal 1
-ros2 run amr_tools auto_mapper --output ~/maps/warehouse_slam                   # terminal 2
-```
-
-### 4.2 Navigation with AMCL on a map (default: custom A* + custom DWA)
-```bash
-ros2 launch amr_bringup bringup.launch.py                                    # prebuilt ground-truth map
-ros2 launch amr_bringup bringup.launch.py map:=$HOME/maps/warehouse_slam.yaml # your SLAM map
-```
-AMCL starts with `set_initial_pose: true` at (0,0,0) = robot spawn. In RViz use **Nav2 Goal**.
-If you move the robot by hand, use **2D Pose Estimate** to relocalize.
-
-Swap any planner/controller pair:
-```bash
-ros2 launch amr_bringup bringup.launch.py planner:=navfn controller:=mppi   # pure Nav2
-ros2 launch amr_bringup bringup.launch.py planner:=astar controller:=dwb    # custom global, Nav2 local
-ros2 launch amr_bringup bringup.launch.py planner:=smac  controller:=dwa    # Nav2 global, custom local
-```
-
-### 4.3 Navigate while mapping
-```bash
-ros2 launch amr_bringup bringup.launch.py slam:=true
-```
-The global costmap's static layer subscribes to SLAM Toolbox's `/map`; unknown space is allowed
-in planning, so goals can be sent into partially explored areas.
-
-### 4.4 What to look at in RViz
-Map, **global costmap** (static + obstacle + inflation, map frame), **local costmap** (4×4 m rolling
-window, odom frame), blue global plan, orange local plan, grey DWA candidate rollouts with the
-chosen one in green, AMCL particle cloud, footprint. Watch the orange obstacles appear in both
-costmaps and clear behind themselves as they move.
-
-## 5. The custom planners
-
-### A\* global planner — `amr_planners::AStarPlanner`
-* 8-connected search on the global costmap, **no corner cutting** through diagonal obstacle pairs.
-* Cost-aware step cost: `len × (1 + cost_weight · c/252)` ⇒ paths keep away from inflated
-  obstacles instead of hugging them. Octile heuristic is admissible because every step costs ≥ 1
-  cell; `heuristic_weight > 1` turns it into weighted A\* (faster, sub-optimal).
-* Cells with cost ≥ 253 (robot centre inside inscribed radius) are impassable; unknown cells
-  optionally allowed with a penalty (needed for SLAM-mode navigation).
-* Goal in an obstacle ⇒ nearest free cell within `tolerance`. Start inside inflation is allowed
-  (robot parked next to a wall) but not inside a lethal cell.
-* Supports Jazzy's planner **cancel checker** and a `max_planning_time` budget, and throws the
-  proper `nav2_core` planner exceptions so the BT's recovery logic reacts correctly.
-* Post-processing: constrained gradient smoother (data + smoothness terms); any move into a
-  higher-cost or lethal cell is rejected, so smoothing can never pull the path into an obstacle.
-
-### DWA local planner — `amr_planners::DWAController`
-Classic Fox–Burgard–Thrun DWA for a unicycle:
-1. **Dynamic window:** `v ∈ [v₀ − a·Δt, v₀ + a·Δt] ∩ [v_min, v_max]`, same for ω, using the
-   measured odometry velocity.
-2. **Rollouts:** each (v, ω) sample is integrated with the exact arc solution for `sim_time`.
-3. **Admissibility:** a rollout is discarded if any pose falls in a cell ≥ 253 on the local costmap.
-4. **Objective** (each term normalised over the admissible set):
-   distance to reference path · distance to lookahead target · heading error · max obstacle cost ·
-   speed deficit.
-5. Supervisory logic: rotate in place when the heading error exceeds `rotate_in_place_angle`,
-   linear slow-down inside `approach_dist`, and final alignment to the goal yaw.
-
-It transforms and prunes the global plan in the costmap frame, honours Nav2 speed limits,
-publishes `/local_plan` and `/dwa_candidates`, and throws `NoValidControl` when every rollout
-collides (Nav2 then runs its clear-costmap / spin / back-up recoveries).
-
-Both algorithms live in ROS-free cores (`astar_core`, `dwa_core`) with 12 gtests covering
-optimality in free space, detours, unreachable goals, corner cutting, cost awareness, goal
-relocation, smoothing, the dynamic window limit, obstacle rejection, and exact arc integration.
-
-## 6. Dynamic obstacle avoidance — layered
-1. **Obstacle layers** in both costmaps mark the LiDAR returns and **ray-trace clear** cells that
-   moving obstacles vacate.
-2. The default BT **replans at 1 Hz**, so A\* routes around an obstacle blocking a corridor.
-3. **DWA** rejects rollouts that intersect the obstacle in the local costmap at 20 Hz.
-4. **Collision monitor** (`approach` polygon, 1.2 s horizon on the raw scan) scales the command
-   down as a last line of defence, independent of the planners.
-
-Patrol routes and speeds: `amr_gazebo/config/dynamic_obstacles.yaml`.
-
-## 7. Comparing Nav2 with the custom planners
-
-```bash
-ros2 run amr_bringup run_comparison.sh 3      # everything, headless; ~30-40 min
-```
-or step by step with a running stack:
-
-```bash
-# (a) Global planners on identical queries and costmap — NavFn, Smac2D and A* are all
-#     loaded side by side in planner_server, so one stack is enough:
-ros2 run amr_tools planner_benchmark --planners NavFn Smac AStar --repeats 10
-
-# (b) End-to-end tour (5 goals, crosses both obstacle lanes). One run per stack:
-ros2 launch amr_bringup bringup.launch.py planner:=navfn controller:=mppi
-ros2 run amr_tools nav_benchmark --label navfn_mppi --repeats 3
-#   ...relaunch with planner:=astar controller:=dwa, then
-ros2 run amr_tools nav_benchmark --label astar_dwa --repeats 3
-
-ros2 run amr_tools analyze_results ~/amr_benchmarks   # summary.md + planners.png + navigation.png
-```
-
-| Planner metrics | Navigation metrics |
+| Task | Command |
 |---|---|
-| success rate, planning time (server-reported and wall), path length, total turning (smoothness), max / mean costmap cost along the path (clearance) | success rate, time to goal, distance travelled, mean speed, minimum LiDAR obstacle distance, mean \|dω/dt\| of the command (jerkiness), recoveries triggered, final position / yaw error |
+| Navigate (custom planners) | `ros2 launch amr_bringup bringup.launch.py` |
+| Navigate (pure Nav2) | `ros2 launch amr_bringup bringup.launch.py planner:=navfn controller:=mppi` |
+| Navigate on your SLAM map | `ros2 launch amr_bringup bringup.launch.py map:=$HOME/maps/warehouse_slam.yaml` |
+| Map with teleop | `ros2 launch amr_bringup mapping.launch.py` + `ros2 run teleop_twist_keyboard teleop_twist_keyboard` |
+| Map autonomously | `ros2 launch amr_bringup bringup.launch.py slam:=true dynamic_obstacles:=false` + `ros2 run amr_tools auto_mapper` |
+| Save a SLAM map | `ros2 run amr_bringup save_map.sh ~/maps/warehouse_slam` |
+| Full benchmark | `ros2 run amr_bringup run_comparison.sh 3` |
+| SLAM map accuracy | `ros2 run amr_tools compare_maps --slam ~/maps/warehouse_slam.yaml --out results/map_eval` |
 
-The fairest controller comparison is **DWA vs DWB** (same algorithm family, same limits and
-sample counts in `nav2_params.yaml`); MPPI is included as the stronger Jazzy default. For the
-A\* vs NavFn vs Smac comparison, note that NavFn returns a potential-field gradient path
-(smooth but can hug inflation), Smac2D is A\*-based with its own smoother, and this A\* trades a
-little length for clearance via `cost_weight`. Sweep `cost_weight` (0, 1, 3, 6) to show that
-trade-off explicitly in your report.
+Launch arguments of `bringup.launch.py`:
 
-## 8. Tuning notes
-* Robot is modelled as a circle (`robot_radius: 0.28`, half-diagonal of the 0.40×0.28 m body plus
-  margin). Both custom planners rely on the inscribed-cost (253) convention, so if you switch to a
-  polygon footprint keep `lethal_threshold` at 253 and add footprint checks to DWA.
-* DWA: raise `w_obstacle` for more clearance, raise `w_path` to track the global path more tightly,
-  lower `sim_time` in narrow doorways. `acc_dt` should be ~ 2–4 controller periods.
-* A\*: `cost_weight` sets the length-vs-clearance trade-off; `heuristic_weight` 1.5–2 gives big
-  speed-ups on large maps.
-* Everything runs on simulated time; every node gets `use_sim_time: true`.
+| Argument | Default | Options |
+|---|---|---|
+| `planner` | `astar` | `navfn`, `smac`, `astar` |
+| `controller` | `dwa` | `mppi`, `dwb`, `dwa` |
+| `slam` | `false` | `true` uses SLAM Toolbox instead of map_server + AMCL |
+| `map` | ground-truth map | any map `.yaml` |
+| `dynamic_obstacles` | `true` | `false` |
+| `headless` | `false` | `true` runs the Gazebo server only |
+| `rviz` | `true` | `false` |
 
-## 9. Regenerating the world
-The world and the ground-truth map come from one box list, so they always agree:
-```bash
-python3 src/amr_gazebo/scripts/generate_world_and_map.py \
-  --world src/amr_gazebo/worlds/warehouse.sdf --map src/amr_bringup/maps/warehouse
+## Results
+
+<!-- RESULTS:START -->
+### SLAM map accuracy vs ground truth
+
+| metric | value |
+|---|---|
+| tolerance_m | 0.1 |
+| slam_wall_cells | 2546 |
+| gt_wall_cells | 3986 |
+| mean_error_m | 0.0546 |
+| rms_error_m | 0.0625 |
+| p95_error_m | 0.1174 |
+| max_error_m | 0.1476 |
+| precision | 0.9442 |
+| recall | 0.6139 |
+| f1 | 0.744 |
+
+![map comparison](results/map_eval/map_comparison.png)
+<!-- RESULTS:END -->
+
+## How it works
+
+```mermaid
+flowchart LR
+  GZ[Gazebo<br>LiDAR · IMU · wheels] --> EKF[EKF<br>encoders + IMU]
+  EKF --> LOC[AMCL / SLAM Toolbox]
+  LOC --> GP[Global planner<br>A* · NavFn · Smac]
+  GP --> LP[Local planner<br>DWA · DWB · MPPI]
+  LP --> SAFE[velocity smoother<br>+ collision monitor] --> GZ
 ```
 
-## 10. Troubleshooting
-| Symptom | Fix |
-|---|---|
-| No `/scan` in ROS | world must load `gz-sim-sensors-system` (ogre2); check `gz topic -l` for `/scan` |
-| Robot doesn't move | `ros2 control list_controllers` should show both controllers *active*; check `/diff_drive_controller/cmd_vel` is receiving TwistStamped from `cmd_vel_relay` |
-| `map` frame missing | localization starts 5 s after Gazebo; on slow machines raise the `TimerAction` periods in `bringup.launch.py` |
-| AMCL particles scattered | set the pose with *2D Pose Estimate*; the default initial pose assumes the robot spawned at (0,0,0) |
-| Plugin not found | `ros2 pkg prefix amr_planners` and re-source `install/setup.bash`; check `colcon build` output for amr_planners |
-| Headless run has no LiDAR | needs `--headless-rendering` (already passed with `headless:=true`) and a working EGL/GPU driver |
+- [Architecture](docs/architecture.md): nodes, TF tree, odometry, robot model, plugin selection.
+- [Algorithms](docs/algorithms.md): A\* cost model and smoother, DWA window, rollouts and
+  objective, with equations.
+- [Benchmarking](docs/benchmarking.md): metrics, controlled comparisons, reproduction, caveats.
+- [Troubleshooting](docs/troubleshooting.md): known issues and fixes.
+
+## Repository structure
+
+```
+├── src/
+│   ├── amr_description/   robot URDF/xacro, ros2_control config
+│   ├── amr_gazebo/        world, dynamic obstacle model, bridges, world+map generator
+│   ├── amr_planners/      A* and DWA: ROS-free cores, Nav2 plugins, gtests
+│   ├── amr_tools/         cmd_vel relay, obstacle driver, auto_mapper, benchmarks, compare_maps
+│   └── amr_bringup/       launch files, Nav2/AMCL/SLAM/EKF params, maps, RViz, scripts
+├── docs/                  architecture, algorithms, benchmarking, troubleshooting, media
+├── results/               benchmark CSVs, summaries, plots, map evaluation
+├── tools/                 repository utilities (README results updater)
+├── docker/                reproducible environment
+└── .github/               CI workflow, issue and PR templates
+```
+
+## Testing
+
+```bash
+colcon test --packages-select amr_planners && colcon test-result --verbose   # 12 gtests
+flake8 src/
+```
+
+CI runs four checks on every push:
+- lint
+- a full Jazzy build with the unit tests
+- every planner/controller parameter combination
+- a self-check of the map-evaluation tool
+
+## Citation
+
+If you use this work, please cite it using [`CITATION.cff`](CITATION.cff) (GitHub's *Cite this
+repository* button).
+
+## License
+
+[Apache 2.0](LICENSE).
+
+## Author
+
+**Munavir Zaman P K**: Research Engineer, Autonomous Vehicles / ADAS.
+[GitHub](https://github.com/munavirzaman-git) · [ORCID](https://orcid.org/0009-0001-4537-6234)

@@ -149,7 +149,8 @@ def main():
                 'time_s': round(elapsed, 3), 'path_length_m': round(rec.dist, 3),
                 'mean_speed_mps': round(rec.dist / elapsed, 3) if elapsed > 0 else 0.0,
                 'min_obstacle_dist_m': round(rec.min_range, 3) if rec.min_range < math.inf else '',
-                'mean_abs_dw_dt': round(rec.dw_sum / rec.dw_n * args.cmd_rate, 4) if rec.dw_n else 0.0,
+                'mean_abs_dw_dt': (round(rec.dw_sum / rec.dw_n * args.cmd_rate, 4)
+                                   if rec.dw_n else 0.0),
                 'recoveries': recoveries,
                 'final_pos_err_m': round(pos_err, 3), 'final_yaw_err_rad': round(yaw_err, 3),
             }

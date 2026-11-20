@@ -1,0 +1,12 @@
+| metric | value |
+|---|---|
+| tolerance_m | 0.1 |
+| slam_wall_cells | 2546 |
+| gt_wall_cells | 3986 |
+| mean_error_m | 0.0546 |
+| rms_error_m | 0.0625 |
+| p95_error_m | 0.1174 |
+| max_error_m | 0.1476 |
+| precision | 0.9442 |
+| recall | 0.6139 |
+| f1 | 0.744 |

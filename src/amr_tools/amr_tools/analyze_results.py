@@ -106,7 +106,7 @@ def plot(summary, keys, title, path):
     if len(keys) == 1:
         axes = [axes]
     for ax, (k, name) in zip(axes, keys):
-        ax.bar(labels, [summary[l][k] for l in labels], color='#4C78A8')
+        ax.bar(labels, [summary[lbl][k] for lbl in labels], color='#4C78A8')
         ax.set_title(name, fontsize=10)
         ax.tick_params(axis='x', rotation=30, labelsize=8)
     fig.suptitle(title)

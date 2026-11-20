@@ -1,7 +1,7 @@
 """Complete system: Gazebo + robot + (SLAM | map_server/AMCL) + Nav2 + RViz.
 
 Examples
-  ros2 launch amr_bringup bringup.launch.py                          # A* + DWA, AMCL on prebuilt map
+  ros2 launch amr_bringup bringup.launch.py               # A* + DWA, AMCL on prebuilt map
   ros2 launch amr_bringup bringup.launch.py planner:=navfn controller:=mppi
   ros2 launch amr_bringup bringup.launch.py slam:=true                # navigate while mapping
   ros2 launch amr_bringup bringup.launch.py map:=$HOME/maps/warehouse_slam.yaml

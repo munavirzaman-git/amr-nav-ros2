@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "AMR Navigation Stack: ROS 2 Jazzy and Gazebo Harmonic with custom A* and DWA Nav2 plugins"
+abstract: >-
+  A complete autonomous mobile robot navigation system for a differential-drive robot:
+  wheel-encoder/IMU odometry, SLAM Toolbox mapping, AMCL localization, Nav2 navigation with
+  dynamic obstacle avoidance, custom A* global and Dynamic Window Approach local planners
+  implemented as Nav2 plugins, and a reproducible benchmark against Nav2's planners.
+authors:
+  - given-names: "Munavir Zaman"
+    family-names: "P K"
+    orcid: "https://orcid.org/0009-0001-4537-6234"
+version: 1.0.0
+date-released: 2026-11-20
+license: Apache-2.0
+repository-code: "https://github.com/munavirzaman-git/amr-nav-ros2"
+keywords:
+  - ROS 2
+  - Nav2
+  - SLAM
+  - AMCL
+  - path planning
+  - A*
+  - Dynamic Window Approach
+  - mobile robots
+  - Gazebo

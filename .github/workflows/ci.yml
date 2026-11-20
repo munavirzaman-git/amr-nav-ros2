@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Python lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install flake8
+      - run: flake8 src/
+
+  build-test:
+    name: Build & test (ROS 2 Jazzy)
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-base
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          rosdep update --rosdistro jazzy
+          rosdep install --from-paths src --ignore-src -y --rosdistro jazzy
+
+      - name: Build
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --event-handlers console_cohesion+ --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+      - name: Unit tests (A* and DWA cores)
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon test --packages-select amr_planners --event-handlers console_cohesion+
+          colcon test-result --verbose
+
+      - name: Check every planner/controller parameter combination resolves
+        run: |
+          source install/setup.bash
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, 'install/amr_bringup/share/amr_bringup/launch')
+          from nav_params_util import resolve_params
+          for p in ('navfn', 'smac', 'astar'):
+              for c in ('mppi', 'dwb', 'dwa'):
+                  resolve_params('src/amr_bringup/config/nav2_params.yaml', p, c)
+          print('all 9 combinations OK')
+          PY
+
+      - name: Map-evaluation self check (ground truth vs itself must be perfect)
+        run: |
+          source install/setup.bash
+          ros2 run amr_tools compare_maps --slam src/amr_bringup/maps/warehouse.yaml --out /tmp/selfcheck
+          python3 -c "import json; m=json.load(open('/tmp/selfcheck/map_metrics.json')); assert m['f1'] == 1.0, m"

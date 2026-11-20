@@ -24,6 +24,7 @@ setup(
             'planner_benchmark = amr_tools.planner_benchmark:main',
             'analyze_results = amr_tools.analyze_results:main',
             'auto_mapper = amr_tools.auto_mapper:main',
+            'compare_maps = amr_tools.compare_maps:main',
         ],
     },
 )
