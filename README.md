@@ -19,14 +19,17 @@ which are benchmarked against Nav2's own planners.
 
 ## Demo
 
-![demo](docs/media/demo.gif)
+**Gazebo Harmonic: warehouse, robot and moving obstacles**
 
-*Custom A\* global planner + DWA local planner with AMCL, driving the benchmark tour while two
-moving obstacles cross its path (2x speed). Full-quality video: [docs/media/demo.mp4](docs/media/demo.mp4).*
+![Gazebo Harmonic: warehouse, robot and moving obstacles](docs/media/gazebo_world.png)
 
-| Gazebo Harmonic | RViz: start | RViz: navigating |
-|---|---|---|
-| ![gazebo](docs/media/gazebo_world.png) | ![rviz start](docs/media/rviz_overview.png) | ![rviz navigation](docs/media/rviz_navigation.png) |
+**RViz: map, costmaps and AMCL particles**
+
+![RViz: map, costmaps and AMCL particles](docs/media/rviz_overview.png)
+
+**RViz: A* path (blue) and DWA trajectories (green = chosen)**
+
+![RViz: A* path (blue) and DWA trajectories (green = chosen)](docs/media/rviz_navigation.png)
 
 ![warehouse layout](docs/media/warehouse_layout.png)
 
